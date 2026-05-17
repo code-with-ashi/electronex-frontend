@@ -1,5 +1,5 @@
 // api.js - Frontend API calls
-const BASE_URL = "http://localhost:5000/api";
+const BASE_URL = "electronex-backend-production.up.railway.app";
 
 const getToken = () => localStorage.getItem("token");
 
