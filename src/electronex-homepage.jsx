@@ -1,4 +1,4 @@
-import { loginUser, registerUser, placeOrder as placeOrderAPI } from './api';
+import { loginUser, registerUser, placeOrderAPI } from './api';
 import { useState, useEffect } from "react";
 
 // ─── DATA ───────────────────────────────────────────────────
