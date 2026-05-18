@@ -1,5 +1,5 @@
 // api.js - Frontend API calls
-const BASE_URL = "electronex-backend-production.up.railway.app";
+const BASE_URL = "https://electronex-backend-production.up.railway.app/api";
 
 const getToken = () => localStorage.getItem("token");
 
@@ -17,6 +17,8 @@ export const registerUser = async (name, email, password) => {
   });
   return res.json();
 };
+
+const BASE_URL = "https://electronex-backend-production.up.railway.app/api";
 
 export const loginUser = async (email, password) => {
   const res = await fetch(`${BASE_URL}/auth/login`, {
