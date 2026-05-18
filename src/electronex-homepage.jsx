@@ -1025,6 +1025,198 @@ function ProfilePage({ user, setPage, orders }) {
   );
 }
 
+function AdminPage({ user, setPage, showToast }) {
+  const [orders, setOrders] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [tab, setTab] = useState("orders");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user?.isAdmin) { setPage("home"); return; }
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const [ordersRes, usersRes] = await Promise.all([
+        fetch("https://electronex-backend-production.up.railway.app/api/orders/all", {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+        }),
+        fetch("https://electronex-backend-production.up.railway.app/api/auth/users", {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+        })
+      ]);
+      const ordersData = await ordersRes.json();
+      const usersData = await usersRes.json();
+      setOrders(Array.isArray(ordersData) ? ordersData : []);
+      setUsers(Array.isArray(usersData) ? usersData : []);
+    } catch (err) {
+      console.error(err);
+    }
+    setLoading(false);
+  };
+
+  const updateStatus = async (orderId, status) => {
+    await fetch(`https://electronex-backend-production.up.railway.app/api/orders/${orderId}/status`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`
+      },
+      body: JSON.stringify({ status })
+    });
+    showToast("Order status updated! ✅");
+    fetchData();
+  };
+
+  const statusColors = {
+    confirmed: "#3b82f6",
+    processing: "#f59e0b",
+    shipped: "#8b5cf6",
+    delivered: "#10b981",
+    cancelled: "#ef4444"
+  };
+
+  if (!user?.isAdmin) return null;
+
+  return (
+    <div style={{ paddingTop: 64, minHeight: "100vh", background: "#f8fafc" }}>
+      <div style={{ background: "linear-gradient(135deg,#0f172a,#1e3a5f)", padding: "40px 24px" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+          <h1 style={{ fontFamily: "Syne,sans-serif", fontWeight: 900, fontSize: "2rem", color: "#fff", marginBottom: 8 }}>
+            ⚡ Admin Dashboard
+          </h1>
+          <p style={{ color: "#64748b" }}>Manage orders and users</p>
+        </div>
+      </div>
+
+      <div style={{ maxWidth: 1200, margin: "0 auto", padding: "32px 24px" }}>
+        {/* Stats */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20, marginBottom: 32 }}>
+          {[
+            ["📦", "Total Orders", orders.length, "#1a78f2"],
+            ["👥", "Total Users", users.length, "#7c3aed"],
+            ["💰", "Total Revenue", `$${orders.reduce((s,o) => s + +o.total, 0).toLocaleString()}`, "#10b981"],
+          ].map(([icon, label, value, color]) => (
+            <div key={label} style={{ background: "#fff", borderRadius: 20, padding: 24, border: "1.5px solid #f1f5f9", textAlign: "center" }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>{icon}</div>
+              <div style={{ fontSize: 28, fontWeight: 900, color, fontFamily: "Syne,sans-serif" }}>{value}</div>
+              <div style={{ color: "#94a3b8", fontSize: 14 }}>{label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Tabs */}
+        <div style={{ display: "flex", gap: 12, marginBottom: 24 }}>
+          {[["orders","📦 Orders"],["users","👥 Users"]].map(([t,l]) => (
+            <button key={t} onClick={() => setTab(t)} style={{
+              padding: "10px 24px", borderRadius: 12, border: "none", cursor: "pointer",
+              background: tab === t ? "#1a78f2" : "#fff",
+              color: tab === t ? "#fff" : "#64748b",
+              fontWeight: 700, fontSize: 14,
+              boxShadow: tab === t ? "0 4px 16px #1a78f230" : "none"
+            }}>{l}</button>
+          ))}
+        </div>
+
+        {/* Orders Table */}
+        {tab === "orders" && (
+          <div style={{ background: "#fff", borderRadius: 20, border: "1.5px solid #f1f5f9", overflow: "hidden" }}>
+            <div style={{ padding: "20px 24px", borderBottom: "1.5px solid #f1f5f9" }}>
+              <h2 style={{ fontFamily: "Syne,sans-serif", fontWeight: 900, color: "#0f172a", margin: 0 }}>All Orders</h2>
+            </div>
+            {loading ? (
+              <div style={{ padding: 40, textAlign: "center", color: "#94a3b8" }}>Loading...</div>
+            ) : orders.length === 0 ? (
+              <div style={{ padding: 40, textAlign: "center", color: "#94a3b8" }}>No orders yet!</div>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ background: "#f8fafc" }}>
+                      {["Order ID","Customer","Email","Total","Status","Date","Action"].map(h => (
+                        <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {orders.map(o => (
+                      <tr key={o.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                        <td style={{ padding: "12px 16px", fontWeight: 700, color: "#1a78f2" }}>ENX-{10000 + o.id}</td>
+                        <td style={{ padding: "12px 16px", fontWeight: 600, color: "#0f172a" }}>{o.user_name}</td>
+                        <td style={{ padding: "12px 16px", color: "#64748b", fontSize: 13 }}>{o.user_email}</td>
+                        <td style={{ padding: "12px 16px", fontWeight: 800, color: "#0f172a" }}>${o.total}</td>
+                        <td style={{ padding: "12px 16px" }}>
+                          <span style={{ background: statusColors[o.status] + "22", color: statusColors[o.status], padding: "4px 12px", borderRadius: 999, fontSize: 12, fontWeight: 700 }}>
+                            {o.status}
+                          </span>
+                        </td>
+                        <td style={{ padding: "12px 16px", color: "#94a3b8", fontSize: 13 }}>
+                          {new Date(o.created_at).toLocaleDateString()}
+                        </td>
+                        <td style={{ padding: "12px 16px" }}>
+                          <select onChange={e => updateStatus(o.id, e.target.value)} defaultValue={o.status}
+                            style={{ padding: "6px 10px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 12, cursor: "pointer", outline: "none" }}>
+                            {["confirmed","processing","shipped","delivered","cancelled"].map(s => (
+                              <option key={s} value={s}>{s}</option>
+                            ))}
+                          </select>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Users Table */}
+        {tab === "users" && (
+          <div style={{ background: "#fff", borderRadius: 20, border: "1.5px solid #f1f5f9", overflow: "hidden" }}>
+            <div style={{ padding: "20px 24px", borderBottom: "1.5px solid #f1f5f9" }}>
+              <h2 style={{ fontFamily: "Syne,sans-serif", fontWeight: 900, color: "#0f172a", margin: 0 }}>All Users</h2>
+            </div>
+            {loading ? (
+              <div style={{ padding: 40, textAlign: "center", color: "#94a3b8" }}>Loading...</div>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                  <thead>
+                    <tr style={{ background: "#f8fafc" }}>
+                      {["ID","Name","Email","Role","Joined"].map(h => (
+                        <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: 12, fontWeight: 700, color: "#94a3b8", textTransform: "uppercase" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {users.map(u => (
+                      <tr key={u.id} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                        <td style={{ padding: "12px 16px", color: "#94a3b8" }}>#{u.id}</td>
+                        <td style={{ padding: "12px 16px", fontWeight: 700, color: "#0f172a" }}>{u.name}</td>
+                        <td style={{ padding: "12px 16px", color: "#64748b" }}>{u.email}</td>
+                        <td style={{ padding: "12px 16px" }}>
+                          <span style={{ background: u.is_admin ? "#7c3aed22" : "#f1f5f9", color: u.is_admin ? "#7c3aed" : "#64748b", padding: "4px 12px", borderRadius: 999, fontSize: 12, fontWeight: 700 }}>
+                            {u.is_admin ? "Admin" : "User"}
+                          </span>
+                        </td>
+                        <td style={{ padding: "12px 16px", color: "#94a3b8", fontSize: 13 }}>
+                          {new Date(u.created_at).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── MAIN APP ────────────────────────────────────────────────
 export default function App() {
   const [page, setPage] = useState("home");
@@ -1104,6 +1296,7 @@ export default function App() {
       {pageName === "checkout" && <CheckoutPage setPage={setPage} cart={cart} user={user} clearCart={clearCart} showToast={showToast} />}
       {pageName === "order-success" && <OrderSuccessPage setPage={setPage} />}
       {pageName === "profile" && <ProfilePage user={user} setPage={setPage} />}
+      {pageName === "admin" && <AdminPage user={user} setPage={setPage} showToast={showToast} />}
     </div>
   );
 }
